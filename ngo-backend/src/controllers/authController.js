@@ -1,18 +1,25 @@
-// Register
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const pool = require("../config/db");
 
+// Register
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password } = req.body;
+
+    // Check if user already exists
+    const userExists = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    if (userExists.rows.length > 0) {
+      return res.status(400).json({ message: "User already exists" });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const result = await pool.query(
       `INSERT INTO users (name, email, password_hash, role)
-       VALUES ($1, $2, $3, $4) RETURNING id, name, email, role`,
-      [name, email, hashedPassword, role || "USER"]
+       VALUES ($1, $2, $3, 'USER')
+       RETURNING id, name, email, role`,
+      [name, email, hashedPassword]
     );
 
     res.status(201).json({
@@ -24,7 +31,7 @@ exports.register = async (req, res) => {
   }
 };
 
-//Login
+// Login
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -54,7 +61,12 @@ exports.login = async (req, res) => {
     res.json({
       message: "Login successful",
       token,
-      role: user.role,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

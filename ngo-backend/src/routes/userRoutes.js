@@ -1,11 +1,9 @@
 const express = require("express");
 const authMiddleware = require("../middleware/authMiddleware");
-const {
-  getUserDonations,
-} = require("../controllers/donationController");
+const { getMe } = require("../controllers/userController");
 
 const router = express.Router();
 
-router.get("/my", authMiddleware, getUserDonations);
+router.get("/me", authMiddleware, getMe);
 
 module.exports = router;

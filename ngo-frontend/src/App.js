@@ -1,58 +1,54 @@
-// import logo from './logo.svg';
-// import './App.css';
-
-// function App() {
-//   return (
-//     <div className="App">
-//       <header className="App-header">
-//         <img src={logo} className="App-logo" alt="logo" />
-//         <p>
-//           Edit <code>src/App.js</code> and save to reload.
-//         </p>
-//         <a
-//           className="App-link"
-//           href="https://reactjs.org"
-//           target="_blank"
-//           rel="noopener noreferrer"
-//         >
-//           Learn React
-//         </a>
-//       </header>
-//     </div>
-//   );
-// }
-
-// export default App;
-
-// import { BrowserRouter, Routes, Route } from "react-router-dom";
-// import Login from "./pages/Login";
-// import UserDashboard from "./pages/UserDashboard";
-// import AdminDashboard from "./pages/AdminDashboard";
-
-// function App() {
-//   return (
-//     <BrowserRouter>
-//       <Routes>
-//         <Route path="/" element={<Login />} />
-//         <Route path="/user" element={<UserDashboard />} />
-//         <Route path="/admin" element={<AdminDashboard />} />
-//       </Routes>
-//     </BrowserRouter>
-//   );
-// }
-
-// export default App;
-
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Login from "./pages/Login";
-import Donate from "./pages/Donate";
+import Login from "./pages/login";
+import Donate from "./pages/donate";
+import AdminDashboard from "./pages/adminDashboard";
+import UserDashboard from "./pages/userDashboard";
+
+import PrivateRoute from "./routes/privateRoute";
+import RoleRoute from "./routes/roleRoute";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Public */}
         <Route path="/" element={<Login />} />
-        <Route path="/donate" element={<Donate />} />
+
+        {/* User Dashboard */}
+        <Route
+          path="/user"
+          element={
+            <PrivateRoute>
+              <RoleRoute role="USER">
+                <UserDashboard />
+              </RoleRoute>
+            </PrivateRoute>
+          }
+        />
+
+        {/* Donate */}
+        <Route
+          path="/donate"
+          element={
+            <PrivateRoute>
+              <RoleRoute role="USER">
+                <Donate />
+              </RoleRoute>
+            </PrivateRoute>
+          }
+        />
+
+        {/* Admin Dashboard */}
+        <Route
+          path="/admin"
+          element={
+            <PrivateRoute>
+              <RoleRoute role="ADMIN">
+                <AdminDashboard />
+              </RoleRoute>
+            </PrivateRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );

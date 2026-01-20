@@ -1,109 +1,88 @@
 const pool = require("../config/db");
-
-/**
- * View all users
- */
-exports.getAllUsers = async (req, res) => {
-  const result = await pool.query(
-    "SELECT id, name, email, role, created_at FROM users"
-  );
-  res.json(result.rows);
-};
-
-/**
- * View all donations
- */
-exports.getAllDonations = async (req, res) => {
-  const result = await pool.query(
-    `SELECT d.id, u.name, d.amount, d.status, d.created_at
-     FROM donations d
-     JOIN users u ON d.user_id = u.id
-     ORDER BY d.created_at DESC`
-  );
-  res.json(result.rows);
-};
-
-/**
- * Admin dashboard stats
- */
-exports.getStats = async (req, res) => {
-  const users = await pool.query("SELECT COUNT(*) FROM users");
-  const donations = await pool.query(
-    "SELECT COALESCE(SUM(amount),0) FROM donations WHERE status='SUCCESS'"
-  );
-
-  res.json({
-    totalUsers: users.rows[0].count,
-    totalDonationAmount: donations.rows[0].coalesce,
-  });
-};
-
-// const pool = require("../config/db");
 const { Parser } = require("json2csv");
 
-/**
- * Filter users by role or date
- */
+// 1. Filter and View Users
 exports.getAllUsers = async (req, res) => {
-  const { role, from, to } = req.query;
+  try {
+    const { role, from, to } = req.query;
+    let query = "SELECT id, name, email, role, created_at FROM users WHERE 1=1";
+    const params = [];
 
-  let query = "SELECT id, name, email, role, created_at FROM users WHERE 1=1";
-  const params = [];
+    if (role) {
+      params.push(role);
+      query += ` AND role = $${params.length}`;
+    }
+    if (from) {
+      params.push(from);
+      query += ` AND created_at >= $${params.length}`;
+    }
+    if (to) {
+      params.push(to);
+      query += ` AND created_at <= $${params.length}`;
+    }
 
-  if (role) {
-    params.push(role);
-    query += ` AND role = $${params.length}`;
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-
-  if (from) {
-    params.push(from);
-    query += ` AND created_at >= $${params.length}`;
-  }
-
-  if (to) {
-    params.push(to);
-    query += ` AND created_at <= $${params.length}`;
-  }
-
-  const result = await pool.query(query, params);
-  res.json(result.rows);
 };
 
-/**
- * Filter donations
- */
+// 2. Filter and View Donations
 exports.getAllDonations = async (req, res) => {
-  const { status } = req.query;
+  try {
+    const { status } = req.query;
+    let query = `
+      SELECT d.id, u.name, d.amount, d.status, d.created_at
+      FROM donations d
+      JOIN users u ON d.user_id = u.id
+      WHERE 1=1
+    `;
+    const params = [];
 
-  let query = `
-    SELECT d.id, u.name, d.amount, d.status, d.created_at
-    FROM donations d
-    JOIN users u ON d.user_id = u.id
-    WHERE 1=1
-  `;
+    if (status) {
+      params.push(status);
+      query += ` AND d.status = $${params.length}`;
+    }
 
-  const params = [];
-
-  if (status) {
-    params.push(status);
-    query += ` AND d.status = $${params.length}`;
+    query += " ORDER BY d.created_at DESC";
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-
-  query += " ORDER BY d.created_at DESC";
-
-  const result = await pool.query(query, params);
-  res.json(result.rows);
 };
 
+// 3. Export Users to CSV
 exports.exportUsersCSV = async (req, res) => {
-  const result = await pool.query(
-    "SELECT id, name, email, role, created_at FROM users"
-  );
+  try {
+    const result = await pool.query(
+      "SELECT id, name, email, role, created_at FROM users"
+    );
+    const parser = new Parser();
+    const csv = parser.parse(result.rows);
 
-  const parser = new Parser();
-  const csv = parser.parse(result.rows);
+    res.header("Content-Type", "text/csv");
+    res.attachment("registrations.csv");
+    return res.send(csv);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
-  res.header("Content-Type", "text/csv");
-  res.attachment("registrations.csv");
-  return res.send(csv);
+// 4. Admin Dashboard Stats
+exports.getStats = async (req, res) => {
+  try {
+    const users = await pool.query("SELECT COUNT(*) FROM users");
+    const donations = await pool.query(
+      "SELECT COALESCE(SUM(amount), 0) AS total FROM donations WHERE status='SUCCESS'"
+    );
+
+    res.json({
+      totalUsers: parseInt(users.rows[0].count),
+      totalDonationAmount: parseFloat(donations.rows[0].total)
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
